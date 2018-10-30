@@ -1,0 +1,30 @@
+{
+  "name": "automaton",
+  "version": "0.0.1",
+  "description": "the story of the automaton",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "parcel index.html",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/lodash": "^4.14.110",
+    "@types/react": "^16.4.1",
+    "@types/react-dom": "^16.0.6",
+    "@types/react-redux": "^6.0.9",
+    "@types/redux": "^3.6.0",
+    "en-inflectors": "^1.0.12",
+    "en-pos": "^1.0.16",
+    "lodash": "^4.17.10",
+    "perf_hooks": "0.0.1",
+    "react": "^16.4.1",
+    "react-dom": "^16.4.1",
+    "react-redux": "^5.1.0",
+    "redux": "^4.0.1",
+    "rxjs": "^6.3.2",
+    "styled-components": "^3.4.9",
+    "typescript": "^2.9.2"
+  }
+}
