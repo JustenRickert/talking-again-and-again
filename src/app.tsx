@@ -3,25 +3,31 @@ import {compose, Dispatch} from 'redux'
 import {connect} from 'react-redux'
 import {Tag} from 'en-pos'
 
-import {createMessage, MessageState, NewMessageEvent} from './message'
+import {
+  createSentence,
+  MessageState,
+  SentenceEvent,
+  ParagraphEvent,
+  UntaggedSentencePayload,
+  createParagraph
+} from './message'
 
 import {Input} from './input'
-import {Robot} from './robot'
+import {Robot} from './Robot'
 
 const nouns = 'The word is that dogs are better than cats'.split(' ')
 
 const adjectives = ['smell', 'priest', 'little', 'phony']
 
 interface Props {
-  onSendMessage: typeof createMessage
+  onSendMessage: typeof createSentence
+  onSendParagraph: typeof createParagraph
 }
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-  onSendMessage: (p: {
-    singleSentenceMessage: string
-    isExclamation: boolean
-    isQuestion: boolean
-  }) => dispatch(createMessage(p))
+  onSendMessage: (p: UntaggedSentencePayload) => dispatch(createSentence(p)),
+  onSendParagraph: (ps: {untaggedMessages: UntaggedSentencePayload[]}) =>
+    dispatch(createParagraph(ps))
 })
 
 interface State {
@@ -40,7 +46,10 @@ class AppClass extends React.Component<Props, State> {
         <Input
           value={userInputValue}
           onChange={this.handleInputChange}
-          onEnter={this.handleSendMessage}
+          onEnter={{
+            onSendSentence: this.handleSendMessage,
+            onSendParagraph: this.handleSendParagraph
+          }}
         />
         <Robot />
       </section>
@@ -50,7 +59,18 @@ class AppClass extends React.Component<Props, State> {
   handleInputChange = (userInputValue: string) =>
     this.setState({userInputValue})
 
-  handleSendMessage = ({message, ...rest}: NewMessageEvent) =>
+  handleSendParagraph = (e: ParagraphEvent) => {
+    this.setState(_ => {
+      this.props.onSendParagraph({
+        untaggedMessages: e.sentences.map(({message, ...rest}) => ({
+          ...rest,
+          singleSentenceMessage: message
+        }))
+      })
+    })
+  }
+
+  handleSendMessage = ({message, ...rest}: SentenceEvent) => {
     this.setState(_ => {
       this.props.onSendMessage({
         ...rest,
@@ -58,6 +78,7 @@ class AppClass extends React.Component<Props, State> {
       })
       return {userInputValue: ''}
     })
+  }
 }
 
 export const App = connect(undefined, mapDispatchToProps)(AppClass)

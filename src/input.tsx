@@ -2,7 +2,7 @@ import * as React from 'react'
 import {compose} from 'redux'
 import {isArray} from 'lodash'
 
-import {NewMessageEvent} from './message'
+import {SentenceEvent, ParagraphEvent} from './message'
 
 export const Input = ({
   onChange,
@@ -10,38 +10,63 @@ export const Input = ({
   value
 }: {
   onChange: (value: string) => void
-  onEnter: (payload: NewMessageEvent) => void
+  onEnter: {
+    onSendSentence: (e: SentenceEvent) => void
+    onSendParagraph: (e: ParagraphEvent) => void
+  }
   value: string
 }) => (
-  <input
+  <textarea
     value={value}
     onChange={e => onChange(e.target.value)}
     onKeyDown={e =>
-      e.key === 'Enter' &&
-      dispatchOnPunctuation(e.currentTarget.value.trim(), onEnter)
+      !e.shiftKey &&
+      (e.key === 'Enter' &&
+        parseSentencesAndDispatchThem(e.currentTarget.value.trim(), onEnter))
     }
   />
 )
 
-const dispatchOnPunctuation = (
-  sentences: string,
-  onChange: (e: NewMessageEvent) => void
+const createSentences = (paragraph: string): string[] => {
+  if (!paragraph) {
+    return []
+  }
+  const matchSentence = paragraph.match(/[!?.]/)
+  if (matchSentence) {
+    return [
+      paragraph.slice(0, matchSentence.index) + matchSentence[0],
+      ...(matchSentence.index
+        ? createSentences(paragraph.slice(matchSentence.index + 1).trimLeft())
+        : [])
+    ]
+  }
+  return [paragraph]
+}
+
+const createSentenceEvent = (sentence: string): SentenceEvent => {
+  const matchPoint = sentence.match(/[!?.]/)
+  return {
+    message: matchPoint ? sentence.slice(0, matchPoint.index) : sentence,
+    isQuestion: Boolean(matchPoint && matchPoint[0] === '?'),
+    isExclamation: Boolean(matchPoint && matchPoint[0] === '!')
+  }
+}
+
+const createParagraphsEvents = (paragraphs: string[]): ParagraphEvent[] =>
+  paragraphs.map(createSentences).map(paragraph => ({
+    sentences: paragraph.map(createSentenceEvent)
+  }))
+
+const parseSentencesAndDispatchThem = (
+  s: string,
+  onChange: {
+    onSendSentence: (e: SentenceEvent) => void
+    onSendParagraph: (e: ParagraphEvent) => void
+  }
 ) => {
-  if (!sentences) {
+  if (!s) {
     return
   }
-  const matchOnPunctuation = sentences.match(/[.!?]/)
-  if (matchOnPunctuation && matchOnPunctuation.index) {
-    const message = sentences.slice(0, matchOnPunctuation.index)
-    const point = matchOnPunctuation[0]
-    const isExclamation = point === '!'
-    const isQuestion = point === '?'
-    onChange({message, isExclamation, isQuestion})
-    dispatchOnPunctuation(
-      sentences.slice(matchOnPunctuation.index + 1, sentences.length),
-      onChange
-    )
-    return
-  }
-  onChange({message: sentences, isQuestion: false, isExclamation: false})
+  const paragraphs = createParagraphsEvents(s.split(/\n{2,}/))
+  paragraphs.forEach(onChange.onSendParagraph)
 }

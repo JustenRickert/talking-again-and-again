@@ -1,68 +1,128 @@
 import {Reducer} from 'redux'
-import {isArray, pick, takeRight} from 'lodash'
-import {Tag, Result} from 'en-pos'
+import {
+  reverse,
+  clone,
+  isArray,
+  pick,
+  take,
+  takeRight,
+  uniqueId,
+  last
+} from 'lodash'
+import {Tag, Result as PosResult} from 'en-pos'
 
-export const MESSAGE = 'MESSAGE_MESSAGE'
+type Sentence = {
+  value: string
+  posResult: PosResult
+  isQuestion: boolean
+  isExclamation: boolean
+  uniqueId: string
+}
+type Paragraph = {
+  sentences: Sentence[]
+  uniqueId: string
+}
 
-export interface NewMessageEvent {
+export interface SentenceEvent {
   message: string
   isQuestion: boolean
   isExclamation: boolean
 }
 
-interface NewMessageAction {
-  type: typeof MESSAGE
-  payload: {posResult: Result; isExclamation: boolean; isQuestion: boolean}
+export interface ParagraphEvent {
+  sentences: SentenceEvent[]
 }
 
-export const createMessage = ({
-  singleSentenceMessage,
-  ...rest
-}: {
+export const SENTENCE = 'MESSAGE_MESSAGE'
+export type UntaggedSentencePayload = {
   singleSentenceMessage: string
   isExclamation: boolean
   isQuestion: boolean
-}): NewMessageAction => {
-  if (/[.?!]/g.test(singleSentenceMessage)) {
-    console.log(singleSentenceMessage)
-    throw new Error(
-      'createMessage doesnt work on multiple sentences, please split them up'
-    )
-  }
-  return {
-    type: MESSAGE,
-    payload: {
-      ...rest,
-      posResult: Tag(singleSentenceMessage.split(/ /))
-    }
-  }
+}
+type SentencePayload = {
+  value: string
+  posResult: PosResult
+  isExclamation: boolean
+  isQuestion: boolean
+}
+interface MessageAction {
+  type: typeof SENTENCE
+  payload: SentencePayload
 }
 
-type Message = {
-  posResult: Result
-  isQuestion: boolean
-  isExclamation: boolean
+export const PARAGRAPH = 'MESSAGE_PARAGRAPH'
+type ParagraphPayload = {
+  sentences: Sentence[]
 }
+type ParagraphAction = {
+  type: typeof PARAGRAPH
+  payload: ParagraphPayload
+}
+
+export const createSentence = ({
+  singleSentenceMessage,
+  ...rest
+}: UntaggedSentencePayload): MessageAction => ({
+  type: SENTENCE,
+  payload: {
+    ...rest,
+    value: singleSentenceMessage,
+    posResult: Tag(singleSentenceMessage.split(/\s+/))
+  }
+})
+const reduceSentence = (
+  state: MessageState,
+  payload: SentencePayload
+): MessageState => ({
+  ...state,
+  history: state.history.length
+    ? [...take(state.history, state.history.length - 1), last(state.history)!]
+    : [
+        {
+          sentences: [{...payload, uniqueId: uniqueId('sentenceId')}],
+          uniqueId: uniqueId('paragraphId')
+        }
+      ]
+})
+
+export const createParagraph = ({
+  untaggedMessages
+}: {
+  untaggedMessages: UntaggedSentencePayload[]
+}): ParagraphAction => ({
+  type: PARAGRAPH,
+  payload: {
+    sentences: untaggedMessages.map(({singleSentenceMessage, ...rest}) => ({
+      ...rest,
+      value: singleSentenceMessage,
+      posResult: Tag(singleSentenceMessage.split(/\s+/)),
+      uniqueId: uniqueId('sentenceId')
+    }))
+  }
+})
+const reduceParagraph = (state: MessageState, payload: ParagraphPayload) => ({
+  ...state,
+  history: [...state.history, {...payload, uniqueId: uniqueId('paragraphId')}]
+})
 
 export interface MessageState {
-  history: Message[]
+  history: Paragraph[]
 }
 const defaultMessageState = {
   history: []
 }
 
-export type MessageAction = NewMessageAction
+export type MessageStoreAction = MessageAction | ParagraphAction
 
-export const messageReducer: Reducer<MessageState, MessageAction> = (
+export const messageReducer: Reducer<MessageState, MessageStoreAction> = (
   state = defaultMessageState,
   action
 ) => {
   switch (action.type) {
-    case MESSAGE:
-      return {
-        ...state,
-        history: [...state.history, action.payload]
-      }
+    case PARAGRAPH:
+      return reduceParagraph(state, action.payload)
+    case SENTENCE:
+      return reduceSentence(state, action.payload)
   }
   return state
 }
@@ -70,4 +130,4 @@ export const messageReducer: Reducer<MessageState, MessageAction> = (
 export const selectMostRecent = (
   count: number,
   state: {message: MessageState}
-) => takeRight(state.message.history, count)
+) => reverse(takeRight(state.message.history, count))

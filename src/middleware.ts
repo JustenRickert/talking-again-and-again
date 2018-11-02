@@ -1,14 +1,14 @@
-// import {Dispatch, Middleware} from 'redux'
+import {Dispatch, Middleware} from 'redux'
 
-// import {MESSAGE} from './message'
-// import {RootState, Action} from './store'
+import {SENTENCE} from './message'
+import {RootState, Action} from './store'
 
-// export const messageInterceptor: Middleware<
-//   Dispatch<Action>,
-//   RootState
-// > = store => next => action => {
-//   if (action.type === MESSAGE) {
-//     const payload = action
-//   }
-//   store.dispatch(action)
-// }
+export const messageInterceptor: Middleware<
+  Dispatch<Action>,
+  RootState
+> = store => next => action => {
+  if (action.type === SENTENCE) {
+    const payload = action
+  }
+  store.dispatch(action)
+}

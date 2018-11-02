@@ -1,10 +1,17 @@
 import * as React from 'react'
 import {connect} from 'react-redux'
-import {toPairs, range} from 'lodash'
-import styled from 'styled-components'
+import {toPairs, range, uniqueId} from 'lodash'
+import styled, {keyframes} from 'styled-components'
 
 import {selectMostRecent, MessageState} from './message'
 import {interleave} from './util'
+
+const fadein = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`
+
+const ShiftingLi = styled.li``
 
 const Tag = styled.span`
   color: gray;
@@ -30,23 +37,35 @@ class RobotClass extends React.Component<Props> {
     return (
       <div>
         <ul>
-          {recentMessages.map(m => {
-            const maxLength = Math.min(
-              m.posResult.tags.length,
-              m.posResult.tokens.length
+          {recentMessages.map(({sentences}) =>
+            sentences.map(
+              ({posResult, isExclamation, isQuestion, uniqueId}) => {
+                const maxLength = Math.min(
+                  posResult.tags.length,
+                  posResult.tokens.length
+                )
+                return (
+                  <ShiftingLi>
+                    {range(maxLength).map(i => (
+                      <>
+                        <Token
+                          key={`Token-${uniqueId}`}
+                          children={posResult.tokens[i]}
+                        />{' '}
+                        <Tag
+                          key={`Tag-${uniqueId}`}
+                          children={posResult.tags[i]}
+                        />
+                        {i + 1 === maxLength
+                          ? isExclamation ? '!' : isQuestion ? '?' : '.'
+                          : ' '}
+                      </>
+                    ))}
+                  </ShiftingLi>
+                )
+              }
             )
-            return (
-              <li>
-                {range(maxLength).map(i => (
-                  <>
-                    <Token children={m.posResult.tokens[i]} />{' '}
-                    <Tag children={m.posResult.tags[i]} />
-                    {i + 1 === maxLength ? '.' : ' '}
-                  </>
-                ))}
-              </li>
-            )
-          })}
+          )}
         </ul>
       </div>
     )
